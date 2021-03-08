@@ -32,7 +32,7 @@ props["dagman.maxidle"] = "1000"
 props["dagman.maxjobs"] = "1000"
 
 # Set retry limit
-props["dagman.retry"] = 3
+props["dagman.retry"] = "3"
 
 # Help Pegasus developers by sharing performance data
 props["pegasus.catalog.workflow.amqp.url"] = "amqp://friend:donatedata@msgs.pegasus.isi.edu:5672/prod/workflows"
@@ -60,7 +60,7 @@ local_storage.add_file_servers(FileServer(
 local_site.add_directories(local_storage)
 
 local_site.add_env(PATH=os.environ["PATH"])
-local_site.add_profile(Namespace.PEGASUS, key='SSH_PRIVATE_KEY', value='/home/cnatzke/.ssh/id_rsa.pegasus')
+local_site.add_profiles(Namespace.PEGASUS, key='SSH_PRIVATE_KEY', value='/home/cnatzke/.ssh/id_rsa.pegasus')
 sc.add_sites(local_site)
 
 # condorpool (simulation execution nodes)
@@ -72,8 +72,7 @@ condorpool_simulation_site.add_condor_profile(
     requirements="HAS_SINGULARITY == TRUE",
     request_cpus=1,
     request_memory="1 GB",
-    request_disk="1 GB",
-    max_retries=5
+    request_disk="1 GB"
 )
 condorpool_simulation_site.add_profiles(
     Namespace.CONDOR,
@@ -92,8 +91,7 @@ condorpool_ntuple_site.add_condor_profile(
     requirements="HAS_SINGULARITY == TRUE",
     request_cpus=1,
     request_memory="1 GB",
-    request_disk="1 GB",
-    max_retries=5
+    request_disk="1 GB"
 )
 condorpool_ntuple_site.add_profiles(
     Namespace.CONDOR,
@@ -108,12 +106,12 @@ remote_site = Site(
     name="remote", arch=Arch.X86_64, os_type=OS.LINUX)
 
 remote_storage = Directory(
-    directory_type=local_storage, path="/data_fast/cnatzke/")
+    directory_type=Directory.LOCAL_STORAGE, path="/data_fast/cnatzke/")
 remote_storage.add_file_servers(FileServer(
     url="scp://cronos.mines.edu/data_fast/cnatzke", operation_type=Operation.ALL))
 remote_site.add_directories(remote_storage)
 
-sc.add_site(remote_site)
+sc.add_sites(remote_site)
 
 # write SiteCatalog to ./sites.yml
 sc.write()
@@ -123,7 +121,7 @@ simulation = Transformation(
     name="simulation",
     site="local",
     pfn=TOP_DIR / "bin/run_simulation",
-    is_stagable=True,
+    is_stageable=True,
     arch=Arch.X86_64
 )
 
@@ -131,7 +129,7 @@ ntuple = Transformation(
     name="ntuple",
     site="local",
     pfn=TOP_DIR / "bin/run_ntuple",
-    is_stagable=True,
+    is_stageable=True,
     arch=Arch.X86_64
 ).add_pegasus_profile(clusters_size=1)
 
@@ -147,7 +145,7 @@ input_files = [File(f.name) for f in (TOP_DIR / "inputs").iterdir()]
 
 rc = ReplicaCatalog()
 for f in input_files:
-    rc.add_relica(site="local", lfn=f, pfn=TOP_DIR / "inputs" / f.lfn)
+    rc.add_replica(site="local", lfn=f, pfn=TOP_DIR / "inputs" / f.lfn)
 
 # write ReplicaCatalog to replicas.yml
 rc.write()
@@ -162,12 +160,12 @@ for job in range(jobs):
     out_file_ntuple = File(f'Converted_{job:03d}.root')
 
     simulation_job = Job(simulation)\
-        .add_inputs(input_files)\
-        .add_output(out_file_simulation)
+        .add_inputs(*input_files)\
+        .add_outputs(out_file_simulation)
 
     ntuple_job = Job(ntuple)\
         .add_inputs(out_file_simulation)\
-        .add_output(out_file_ntuple)
+        .add_outputs(out_file_ntuple)
 
     wf.add_jobs(simulation_job)
     wf.add_jobs(ntuple_job)
