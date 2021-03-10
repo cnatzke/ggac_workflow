@@ -63,43 +63,18 @@ local_site.add_env(PATH=os.environ["PATH"])
 local_site.add_profiles(Namespace.PEGASUS, key='SSH_PRIVATE_KEY', value='/home/cnatzke/.ssh/id_rsa.pegasus')
 sc.add_sites(local_site)
 
-# condorpool (simulation execution nodes)
-condorpool_simulation_site = Site(
-    name="condorpool_simulation", arch=Arch.X86_64, os_type=OS.LINUX)
-condorpool_simulation_site.add_pegasus_profile(style="condor")
-condorpool_simulation_site.add_condor_profile(
+# condorpool (execution nodes)
+condorpool_site = Site(
+    name="condorpool", arch=Arch.X86_64, os_type=OS.LINUX)
+condorpool.add_pegasus_profile(style="condor")
+condorpool.add_condor_profile(
     universe="vanilla",
     requirements="HAS_SINGULARITY == TRUE",
     request_cpus=1,
     request_memory="1 GB",
     request_disk="1 GB"
 )
-condorpool_simulation_site.add_profiles(
-    Namespace.CONDOR,
-    key="+SingularityImage",
-    value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/griffin_simulation:geant4.10.01"'
-)
-
-sc.add_sites(condorpool_simulation_site)
-
-# condorpool (ntuple execution nodes)
-condorpool_ntuple_site = Site(
-    name="condorpool_ntuple", arch=Arch.X86_64, os_type=OS.LINUX)
-condorpool_ntuple_site.add_pegasus_profile(style="condor")
-condorpool_ntuple_site.add_condor_profile(
-    universe="vanilla",
-    requirements="HAS_SINGULARITY == TRUE",
-    request_cpus=1,
-    request_memory="1 GB",
-    request_disk="1 GB"
-)
-condorpool_ntuple_site.add_profiles(
-    Namespace.CONDOR,
-    key="+SingularityImage",
-    value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/ntuple:ggac_surface"'
-)
-
-sc.add_sites(condorpool_ntuple_site)
+sc.add_sites(condorpool)
 
 # remote server (for analysis)
 remote_site = Site(
@@ -108,7 +83,7 @@ remote_site = Site(
 remote_storage = Directory(
     directory_type=Directory.LOCAL_STORAGE, path="/data_fast/cnatzke/")
 remote_storage.add_file_servers(FileServer(
-    url="scp://cronos.mines.edu/data_fast/cnatzke", operation_type=Operation.ALL))
+    url="scp://cnatzke@cronos.mines.edu/data_fast/cnatzke", operation_type=Operation.ALL))
 remote_site.add_directories(remote_storage)
 
 sc.add_sites(remote_site)
@@ -117,6 +92,14 @@ sc.add_sites(remote_site)
 sc.write()
 
 # --- Transformations ---------------------------------------------------------
+file_preparation = Transformation(
+    name="file_preparation",
+    site="local",
+    pfn=TOP_DIR / "bin/prepare_files",
+    is_stageable=True,
+    arch=Arch.X86_64
+)
+
 simulation = Transformation(
     name="simulation",
     site="local",
@@ -131,10 +114,10 @@ ntuple = Transformation(
     pfn=TOP_DIR / "bin/run_ntuple",
     is_stageable=True,
     arch=Arch.X86_64
-).add_pegasus_profile(clusters_size=1)
+)
 
 tc = TransformationCatalog()
-tc.add_transformations(simulation, ntuple)
+tc.add_transformations(file_preparation, simulation, ntuple)
 
 # write TransformationCatalog to ./transformations.yml
 tc.write()
@@ -155,17 +138,36 @@ jobs = 10
 
 wf = Workflow(name="ggac_surface-workflow")
 
+preparation_job = Job(file_preparation)\
+    .add_inputs(parameters.cfg)\
+    .add_outputs('run_macro.mac')\
+    .add_profiles(
+        Namespace.CONDOR,
+        key="+SingularityImage",
+        value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/prepare_files:latest"'
+    )
+
 for job in range(jobs):
     out_file_simulation = File(f'g4out_{job:03d}.root')
     out_file_ntuple = File(f'Converted_{job:03d}.root')
 
     simulation_job = Job(simulation)\
         .add_inputs(*input_files)\
-        .add_outputs(out_file_simulation)
+        .add_outputs(out_file_simulation)\
+        .add_profiles(
+            Namespace.CONDOR,
+            key="+SingularityImage",
+            value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/griffin_simulation:geant4.10.01"'
+        )
 
     ntuple_job = Job(ntuple)\
         .add_inputs(out_file_simulation)\
-        .add_outputs(out_file_ntuple)
+        .add_outputs(out_file_ntuple)\
+        .add_profiles(
+            Namespace.CONDOR,
+            key="+SingularityImage",
+            value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/ntuple:ggac_surface"'
+        )
 
     wf.add_jobs(simulation_job)
     wf.add_jobs(ntuple_job)
@@ -173,6 +175,5 @@ for job in range(jobs):
 # plan workflow
 wf.plan(
     dir=WORK_DIR / "runs",
-    sites=["condorpool_simulation", "condorpool_ntuple"],
-    output_sites=["remote_server"]
+    output_sites=["remote"]
 )
