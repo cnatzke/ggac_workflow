@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# source geant4
+GEANT4_VERSION="geant4.10.01.p03"
+source /softwares/${GEANT4_VERSION}/bin/geant4.sh
+
+# run simulation
+/softwares/simulation/bin/Griffinv10 run_macro.mac
+
+if [ "$?" -eq "134" ]; then
+    echo "Uh, had a slight weapons malfunction. But, uh, everything's perfectly all right now. We're fine. We're all fine here, now, thank you. How are you?"
+    exit 0
+fi

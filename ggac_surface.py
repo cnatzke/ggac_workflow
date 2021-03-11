@@ -43,14 +43,13 @@ props.write()
 # --- Sites -------------------------------------------------------------------
 sc = SiteCatalog()
 
-
 # local site (submit node)
 local_site = Site(name="local", arch=Arch.X86_64)
 
 local_shared_scratch = Directory(
     directory_type=Directory.SHARED_SCRATCH, path=WORK_DIR / "scratch")
 local_shared_scratch.add_file_servers(FileServer(
-    url="file//" + str(WORK_DIR / "outputs"), operation_type=Operation.ALL))
+    url="file://" + str(WORK_DIR / "scratch"), operation_type=Operation.ALL))
 local_site.add_directories(local_shared_scratch)
 
 local_storage = Directory(
@@ -60,26 +59,28 @@ local_storage.add_file_servers(FileServer(
 local_site.add_directories(local_storage)
 
 local_site.add_env(PATH=os.environ["PATH"])
-local_site.add_profiles(Namespace.PEGASUS, key='SSH_PRIVATE_KEY', value='/home/cnatzke/.ssh/id_rsa.pegasus')
+local_site.add_profiles(Namespace.PEGASUS, key='SSH_PRIVATE_KEY',
+                        value='/home/cnatzke/.ssh/id_rsa.pegasus')
 sc.add_sites(local_site)
 
 # condorpool (execution nodes)
 condorpool_site = Site(
     name="condorpool", arch=Arch.X86_64, os_type=OS.LINUX)
-condorpool.add_pegasus_profile(style="condor")
-condorpool.add_condor_profile(
+condorpool_site.add_pegasus_profile(style="condor")
+condorpool_site.add_condor_profile(
     universe="vanilla",
     requirements="HAS_SINGULARITY == TRUE",
     request_cpus=1,
     request_memory="1 GB",
     request_disk="1 GB"
 )
-sc.add_sites(condorpool)
+sc.add_sites(condorpool_site)
 
 # remote server (for analysis)
 remote_site = Site(
     name="remote", arch=Arch.X86_64, os_type=OS.LINUX)
 
+remote_site.add_pegasus_profile(style="condor")
 remote_storage = Directory(
     directory_type=Directory.LOCAL_STORAGE, path="/data_fast/cnatzke/")
 remote_storage.add_file_servers(FileServer(
@@ -138,27 +139,30 @@ jobs = 10
 
 wf = Workflow(name="ggac_surface-workflow")
 
+out_file_preparation = File('run_macro.mac')
 preparation_job = Job(file_preparation)\
-    .add_inputs(parameters.cfg)\
-    .add_outputs('run_macro.mac')\
+    .add_inputs(File('simulation.cfg'))\
+    .add_outputs(out_file_preparation)\
     .add_profiles(
         Namespace.CONDOR,
         key="+SingularityImage",
         value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/prepare_files:latest"'
-    )
+)
+
+wf.add_jobs(preparation_job)
 
 for job in range(jobs):
     out_file_simulation = File(f'g4out_{job:03d}.root')
     out_file_ntuple = File(f'Converted_{job:03d}.root')
 
     simulation_job = Job(simulation)\
-        .add_inputs(*input_files)\
+        .add_inputs(*input_files, out_file_preparation)\
         .add_outputs(out_file_simulation)\
         .add_profiles(
             Namespace.CONDOR,
             key="+SingularityImage",
             value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/griffin_simulation:geant4.10.01"'
-        )
+    )
 
     ntuple_job = Job(ntuple)\
         .add_inputs(out_file_simulation)\
@@ -167,7 +171,7 @@ for job in range(jobs):
             Namespace.CONDOR,
             key="+SingularityImage",
             value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/ntuple:ggac_surface"'
-        )
+    )
 
     wf.add_jobs(simulation_job)
     wf.add_jobs(ntuple_job)
@@ -175,5 +179,6 @@ for job in range(jobs):
 # plan workflow
 wf.plan(
     dir=WORK_DIR / "runs",
-    output_sites=["remote"]
+    output_sites=["remote"],
+    submit=True
 )
