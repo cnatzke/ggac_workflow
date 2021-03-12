@@ -99,7 +99,7 @@ file_preparation = Transformation(
     pfn=TOP_DIR / "bin/prepare_files",
     is_stageable=True,
     arch=Arch.X86_64
-)
+).add_pegasus_profile(clusters_size=3)
 
 simulation = Transformation(
     name="simulation",
@@ -159,7 +159,7 @@ for z in z_list:
         out_file_name_ntuple = f'Converted_{z}_{job:03d}.root'
 
         simulation_job = Job(simulation)\
-            .add_args(out_file_name_simulation)\
+            .add_args(out_file_name_preparation, out_file_name_simulation)\
             .add_inputs(*input_files, File(out_file_name_preparation))\
             .add_outputs(File(out_file_name_simulation))\
             .add_profiles(
