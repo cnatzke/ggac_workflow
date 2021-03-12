@@ -41,10 +41,13 @@ A=$(iniget $1 simulation a)
 G1=$(iniget $1 simulation g1)
 G2=$(iniget $1 simulation g2)
 
-if [[ $# != 2 || ! -f $1 ]]; then
-    echo "usage: prepare_files <file> <z_dist>"
+if [[ $# != 3 || ! -f $1 ]]; then
+    echo "usage: prepare_files <file> <z_dist> <output filename>"
     exit 1
 else
+    echo "Preparing run macro ... "
     /app/prepare_files.py -z $Z -a $A -g1 $G1 -g2 $G2 -d $2
+    echo "Preparing run macro ... [DONE]"
+    mv run_macro.mac $3
     exit 0
 fi

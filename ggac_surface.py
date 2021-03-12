@@ -82,9 +82,9 @@ remote_site = Site(
 
 remote_site.add_pegasus_profile(style="condor")
 remote_storage = Directory(
-    directory_type=Directory.LOCAL_STORAGE, path="/data_fast/cnatzke/")
+    directory_type=Directory.LOCAL_STORAGE, path="/data_fast/cnatzke/Tests")
 remote_storage.add_file_servers(FileServer(
-    url="scp://cnatzke@cronos.mines.edu/data_fast/cnatzke", operation_type=Operation.ALL))
+    url="scp://cnatzke@cronos.mines.edu/data_fast/cnatzke/Tests", operation_type=Operation.ALL))
 remote_site.add_directories(remote_storage)
 
 sc.add_sites(remote_site)
@@ -136,45 +136,50 @@ rc.write()
 
 # --- WorkFlow ----------------------------------------------------------------
 jobs = 10
+z_list = ['Z0', 'Z2', 'Z4']
 
 wf = Workflow(name="ggac_surface-workflow")
 
-out_file_preparation = File('run_macro.mac')
-preparation_job = Job(file_preparation)\
-    .add_inputs(File('simulation.cfg'))\
-    .add_outputs(out_file_preparation)\
-    .add_profiles(
-        Namespace.CONDOR,
-        key="+SingularityImage",
-        value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/prepare_files:latest"'
-)
-
-wf.add_jobs(preparation_job)
-
-for job in range(jobs):
-    out_file_simulation = File(f'g4out_{job:03d}.root')
-    out_file_ntuple = File(f'Converted_{job:03d}.root')
-
-    simulation_job = Job(simulation)\
-        .add_inputs(*input_files, out_file_preparation)\
-        .add_outputs(out_file_simulation)\
+for z in z_list:
+    out_file_name_preparation = f'run_macro_{z}.mac'
+    preparation_job = Job(file_preparation)\
+        .add_args('simulation.cfg', z, out_file_name_preparation)\
+        .add_inputs(File('simulation.cfg'))\
+        .add_outputs(File(out_file_name_preparation))\
         .add_profiles(
             Namespace.CONDOR,
             key="+SingularityImage",
-            value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/griffin_simulation:geant4.10.01"'
+            value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/prepare_files:latest"'
     )
 
-    ntuple_job = Job(ntuple)\
-        .add_inputs(out_file_simulation)\
-        .add_outputs(out_file_ntuple)\
-        .add_profiles(
-            Namespace.CONDOR,
-            key="+SingularityImage",
-            value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/ntuple:ggac_surface"'
-    )
+    wf.add_jobs(preparation_job)
 
-    wf.add_jobs(simulation_job)
-    wf.add_jobs(ntuple_job)
+    for job in range(jobs):
+        out_file_name_simulation = f'g4out_{z}_{job:03d}.root'
+        out_file_name_ntuple = f'Converted_{z}_{job:03d}.root'
+
+        simulation_job = Job(simulation)\
+            .add_args(out_file_name_simulation)\
+            .add_inputs(*input_files, File(out_file_name_preparation))\
+            .add_outputs(File(out_file_name_simulation))\
+            .add_profiles(
+                Namespace.CONDOR,
+                key="+SingularityImage",
+                value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/griffin_simulation:geant4.10.01"'
+        )
+
+        ntuple_job = Job(ntuple)\
+            .add_args(out_file_name_simulation, out_file_name_ntuple)\
+            .add_inputs(File(out_file_name_simulation))\
+            .add_outputs(File(out_file_name_ntuple))\
+            .add_profiles(
+                Namespace.CONDOR,
+                key="+SingularityImage",
+                value='"/cvmfs/singularity.opensciencegrid.org/cnatzke/ntuple:ggac_surface"'
+        )
+
+        wf.add_jobs(simulation_job)
+        wf.add_jobs(ntuple_job)
 
 # plan workflow
 wf.plan(
