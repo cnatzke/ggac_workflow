@@ -42,12 +42,22 @@ G1=$(iniget $1 simulation g1)
 G2=$(iniget $1 simulation g2)
 
 if [[ $# != 3 || ! -f $1 ]]; then
-    echo "usage: prepare_files <file> <z_dist> <output filename>"
+    echo "usage: prepare_files <config file> <z_dist> <output filename>"
     exit 1
 else
     echo "Preparing run macro ... "
+    echo "/app/prepare_files.py -z $Z -a $A -g1 $G1 -g2 $G2 -d $2"
     /app/prepare_files.py -z $Z -a $A -g1 $G1 -g2 $G2 -d $2
+    ls 
     echo "Preparing run macro ... [DONE]"
-    mv run_macro.mac $3
-    exit 0
+
+    # Renaming output files for better record keeping
+    if [[ -e run_macro.mac ]]; then 
+        mv run_macro.mac $3
+        cp $1 simulation_$2.cfg
+        exit 0
+    else
+        echo "Something went wrong"
+        exit 1
+    fi
 fi
