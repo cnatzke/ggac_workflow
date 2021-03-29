@@ -11,14 +11,17 @@ if [[ "$?" -eq "134" && -s g4out.root ]]; then
     echo "Uh, had a slight weapons malfunction. But, uh, everything's perfectly all right now. We're fine. We're all fine here, now, thank you. How are you?"
     mv g4out.root $2
     exit 0
-elif [[ "$?" -eq "0" ]]; then 
+elif [[ "$?" -eq "0" ]]; then
     echo "All is good"
     mv g4out.root $2
     exit 0
 elif [[ ! -s g4out.root ]]; then
     echo "File g4out.root does not exist or is 0 bytes!"
     exit 1
+elif [[ -n "$(find ./ -name "g4out.root" -prune -size -80M)" ]]; then
+    echo "File g4out.root is too small"
+    exit 2
 else
     echo "Something went wrong"
-    exit 2
+    exit 3
 fi

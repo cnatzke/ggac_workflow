@@ -35,27 +35,19 @@ function iniget() {
     done <<<"$lines"
 }
 
-# parse ini file
-Z=$(iniget $1 simulation z)
-A=$(iniget $1 simulation a)
-G1=$(iniget $1 simulation g1)
-G2=$(iniget $1 simulation g2)
+TOP_DIR=$(pwd)
+CFG_FILE="$TOP_DIR/inputs/simulation.ini"
 
-if [[ $# != 3 ]]; then
-    echo "usage: prepare_files <config file> <z_dist> <output filename>"
+# parse ini file
+Z=$(iniget $CFG_FILE simulation z)
+A=$(iniget $CFG_FILE simulation a)
+G1=$(iniget $CFG_FILE simulation g1)
+G2=$(iniget $CFG_FILE simulation g2)
+
+if [[ $# != 0 ]]; then
+    echo "usage: write_intput_files"
     exit 1
 else
-    echo "Preparing run macro ... "
-    /app/prepare_files.py -z $Z -a $A -g1 $G1 -g2 $G2 -d $2
-    echo "Preparing run macro ... [DONE]"
-
-    # Renaming output files for better record keeping
-    if [[ -e run_macro.mac ]]; then
-        mv run_macro.mac $3
-        cp $1 simulation_$2.cfg
-        exit 0
-    else
-        echo "Something went wrong"
-        exit 1
-    fi
+    echo "Writing input files ... "
+    $TOP_DIR/bin/write_input_files.py -z $Z -a $A -g1 $G1 -g2 $G2
 fi
