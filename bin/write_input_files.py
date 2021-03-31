@@ -24,7 +24,7 @@ def write_decay_file(element, isotope, gamma_1, gamma_2, dir):
         '#  Excitation  Halflife    Mode    Daughter    Ex  Intensity   Q\n'
         'P  0.000000    1.0000e+02\n'
         '   BetaMinus   0.0000  1.0000e+00\n'
-        f'   BetaMinus   {float(gamma_1) + float(gamma_2)}    1.0000e+00  4000.0000\n'
+        f'   BetaMinus   {float(gamma_1) + float(gamma_2)}    1.0000e+00  10.0\n'
     )
     file_name = f'{dir}/z{element}.a{isotope}'
     file = open(file_name, "w")

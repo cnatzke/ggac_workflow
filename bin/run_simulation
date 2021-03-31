@@ -18,7 +18,7 @@ elif [[ "$?" -eq "0" ]]; then
 elif [[ ! -s g4out.root ]]; then
     echo "File g4out.root does not exist or is 0 bytes!"
     exit 1
-elif [[ -n "$(find ./ -name "g4out.root" -prune -size -80M)" ]]; then
+elif [[ -n "$(find ./ -name "g4out.root" -prune -size -10M)" ]]; then
     echo "File g4out.root is too small"
     exit 2
 else

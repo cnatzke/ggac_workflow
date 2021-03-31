@@ -38,15 +38,13 @@ function iniget() {
 # parse ini file
 Z=$(iniget $1 simulation z)
 A=$(iniget $1 simulation a)
-G1=$(iniget $1 simulation g1)
-G2=$(iniget $1 simulation g2)
 
 if [[ $# != 3 ]]; then
     echo "usage: prepare_files <config file> <z_dist> <output filename>"
     exit 1
 else
     echo "Preparing run macro ... "
-    /app/prepare_files.py -z $Z -a $A -g1 $G1 -g2 $G2 -d $2
+    /app/prepare_files.py -z $Z -a $A -d $2 -r 145
     echo "Preparing run macro ... [DONE]"
 
     # Renaming output files for better record keeping
