@@ -38,7 +38,7 @@ function iniget() {
 # parse ini file
 Z=$(iniget $1 simulation z)
 A=$(iniget $1 simulation a)
-R=145
+R=$(iniget $1 simulation r)
 
 if [[ $# != 3 ]]; then
     echo "usage: prepare_files <config file> <z_dist> <output filename>"
