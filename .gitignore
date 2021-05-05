@@ -1,2 +1,4 @@
 *.yml
 *.properties
+make_input_files.sh
+simulation.ini
