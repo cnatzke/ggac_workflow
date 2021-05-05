@@ -1,1 +1,1 @@
-bin/write_input_files.sh
+bin/make_input_files.sh
